@@ -4,5 +4,3 @@ ignore*
 .vscode
 *.egg*
 data/*
-1
-
