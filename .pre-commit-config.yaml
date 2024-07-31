@@ -1,0 +1,29 @@
+# To install the git pre-commit hook run:
+#   pre-commit install
+# To update the pre-commit hooks run:
+#   pre-commit install-hooks
+exclude: '^(\.tox|ci/templates|\.bumpversion\.cfg)(/|$)'
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: debug-statements
+      - id: check-added-large-files
+        args: ['--maxkb=20000']
+      - id: end-of-file-fixer
+      - id: detect-private-key
+      - id: detect-aws-credentials
+  - repo: https://github.com/timothycrosley/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]
+  - repo: https://github.com/psf/black
+    rev: 23.1.0
+    hooks:
+      - id: black
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.0.0
+    hooks:
+      - id: flake8
