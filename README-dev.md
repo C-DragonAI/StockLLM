@@ -38,3 +38,32 @@
 - Prompt Store，透過 Prompt 製造一個 GPT
 - 評估者 -> 給定預測和真實，要給一個反饋
 - Trainer -> 整個 Pipeline，收集資料 -> 預測 -> 評估 -> 調整
+
+# 專案初始化
+
+## 步驟
+
+1. 創建 `.env` 文件
+
+在你的項目根目錄下創建一個 `.env` 文件，並添加以下內容：
+
+```
+AWS_ACCESS_KEY_ID=your_access_key_id
+AWS_SECRET_ACCESS_KEY=your_secret_access_key
+AWS_DEFAULT_REGION=your_default_region
+AWS_OUTPUT_FORMAT=json
+```
+
+2. 執行 `make init` 或 `sh sh/init.sh`，會自動安裝 `aws cli` 以及使用 credential 下載數據
+
+```bash
+$make init
+sh sh/init.sh
+Data folder already exists.
+Installing AWS CLI on macOS...
+AWS CLI already installed.
+Configuring AWS CLI...
+download: s3://ai-s3-disk/datasets/StocksData/stock_dates.csv to data/stock_dates.csv
+download: s3://ai-s3-disk/datasets/StocksData/stock_daily.csv to data/stock_daily.csv
+download: s3://ai-s3-disk/datasets/StocksData/stock_daily_v2.csv to data/stock_daily_v2.csv
+```
