@@ -13,13 +13,12 @@
     <a href="#"><img alt="Flask" src="https://img.shields.io/badge/-Flask-271DA2?style=flat-square&logo=flask&logoColor=white"></a>
 </p>
 
-
 <p align="center">
     <b>
-        <a href=#Features> Features </a>|
-        <a href=#Installation> Installation </a>|
-        <a href=#Quickstart> Quickstart </a>|
-        <a href=#Contributing> Contributing </a>
+        <a href=##Features > Features </a>|
+        <a href=##Installation> Installation </a>|
+        <a href=##Quickstart> Quickstart </a>|
+        <a href=##Contributing> Contributing </a>
     </b>
 </p>
 
@@ -28,11 +27,11 @@
 
 Users can easily forecast stock price trends by simply providing an API key, making sophisticated financial analysis accessible and user-friendly.
 
-## 🌟 Features
+## Features
 
-**StockLLM** is a **multimodal AI analysis tool** that integrates various facets of stock market data, combining both structured and unstructured information to deliver comprehensive insights and predictions.
+**StockLLM** is a **multimedia AI analysis tool** that integrates various facets of stock market data, combining both **structured** and **unstructured** information to deliver comprehensive insights and predictions.
 
-:white_check_mark: **Multimodal Analysis**: Combines data from diverse sources including structured financial data, market indicators, and unstructured data such as text and audio.
+:white_check_mark: **Multimedia Analysis**: Combines data from diverse sources including structured financial data, market indicators, and unstructured data such as text and audio.
 
 :white_check_mark: **Comprehensive Market Insights**: Analyzes multiple market dimensions including technical indicators, fundamental analysis, sentiment analysis, and macroeconomic factors.
 
@@ -40,12 +39,11 @@ Users can easily forecast stock price trends by simply providing an API key, mak
 
 ## 🛠️ Installation
 
-```bash
-
-```
+TODO
 
 ## :rocket: Quickstart
 
+TODO
 
 ## 💁 Contributing
 
