@@ -39,7 +39,7 @@ Users can easily forecast stock price trends by simply providing an API key, mak
 
 ## 🛠️ Installation
 
-TODO
+TODO 123
 
 ## :rocket: Quickstart
 
