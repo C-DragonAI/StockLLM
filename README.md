@@ -27,7 +27,7 @@
 
 Users can easily forecast stock price trends by simply providing an API key, making sophisticated financial analysis accessible and user-friendly.
 
-## Features
+## 🌟 Features
 
 **StockLLM** is a **multimedia AI analysis tool** that integrates various facets of stock market data, combining both **structured** and **unstructured** information to deliver comprehensive insights and predictions.
 
