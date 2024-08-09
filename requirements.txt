@@ -4,3 +4,5 @@ youtube-transcript-api
 openai
 yt-dlp
 pydub
+typer
+colorlog

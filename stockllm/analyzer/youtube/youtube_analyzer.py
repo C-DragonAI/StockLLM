@@ -1,13 +1,21 @@
-# import json
 import os
 import re
 
 import OpenAI
 import yt_dlp
 from pydub import AudioSegment
+
+from stockllm.analyzer.base_analyzer import BaseAnalyzer
 from stockllm.common.logger import logger
 
+# import json
 # from youtube_transcript_api import YouTubeTranscriptApi
+
+
+class YoutubeAnalyzer(BaseAnalyzer):
+    def __init__(self) -> None:
+        super().__init__()
+
 
 MAX_FILE_SIZE = 25 * 1024 * 1024  # 25 MB in bytes
 INITIAL_CHUNK_DURATION = 10 * 60 * 1000  # 10 minutes in milliseconds
@@ -122,19 +130,3 @@ def chunk_audio(
         chunk_duration = initial_duration  # Reset chunk duration for the next iteration
 
     return chunks
-
-
-# def get_transcript(video_id):
-#     """Download YouTube audio and subtitles for a given video ID."""
-#     transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-#     transcript = YouTubeTranscriptApi.get_transcript(video_id)
-
-#     try:
-#         transcript = YouTubeTranscriptApi.get_transcript(
-#             video_id, languages=["zh-TW", "zh-CN", "zh"]
-#         )
-#         with open(subtitle_file, "w", encoding="utf-8") as f:
-#             json.dump(transcript, f, ensure_ascii=False, indent=2)
-#     except Exception as e:
-#         logger.error(f"Error getting transcript for video {video_id}: {e}")
-#         return None
