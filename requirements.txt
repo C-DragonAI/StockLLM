@@ -1,0 +1,6 @@
+requests
+feedparser
+youtube-transcript-api
+openai
+yt-dlp
+pydub

@@ -5,3 +5,5 @@ ignore*
 *.egg*
 data/*
 123
+podcastor.json
+.cache
