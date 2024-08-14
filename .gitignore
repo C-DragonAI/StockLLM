@@ -7,3 +7,5 @@ data/*
 123
 podcastor.json
 .cache
+stockllm/analyzer/youtube/cookies.txt
+stockllm/analyzer/youtube/config.json
