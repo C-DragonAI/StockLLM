@@ -8,4 +8,5 @@ data/*
 podcastor.json
 .cache
 stockllm/analyzer/youtube/cookies.txt
-stockllm/analyzer/youtube/config.json
+stockllm/analyzer/youtube/*.json
+youtube_output/

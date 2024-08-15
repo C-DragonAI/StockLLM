@@ -4,6 +4,7 @@ import re
 from typing import Any, Dict, List, Optional
 
 import openai
+import requests
 import yt_dlp
 from pydub import AudioSegment
 from youtube_transcript_api import YouTubeTranscriptApi
@@ -224,7 +225,41 @@ class YoutubeAnalyzer(BaseAnalyzer):
                 ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
             return audio_file
         except yt_dlp.utils.DownloadError as e:
-            logger.error(f"Error processing video {video_id}: {e}")
+            try:
+                # Thanks to Cobalt! Your work is truly great.
+                # https://github.com/imputnet/cobalt
+                logger.info("Initiating download using Cobalt API.")
+
+                url = "https://olly.imput.net/api/json"
+                params = {
+                    "url": f"https://www.youtube.com/watch?v={video_id}",
+                    "isAudioOnly": True,
+                }
+                headers = {
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                }
+
+                # Make the API request
+                response = requests.post(url, json=params, headers=headers)
+
+                if response.status_code == 200:
+                    result = response.json()
+                    download_url = result["url"]
+                    # Step 2: Download the audio content from the stream
+                    logger.info("Start to stream download using Cobalt API.")
+                    with requests.get(download_url, stream=True) as stream_response:
+                        stream_response.raise_for_status()
+                        os.makedirs(self.configs["output_dir"], exist_ok=True)
+                        with open(audio_file, "wb") as file:
+                            for chunk in stream_response.iter_content(chunk_size=8192):
+                                file.write(chunk)
+
+                    logger.info("Download successful!")
+                    return audio_file
+            except ValueError:
+                logger.error(f"Error processing video {video_id}: {e}")
+
             return None
 
     def process_and_transcribe_audio(
@@ -303,9 +338,9 @@ class YoutubeAnalyzer(BaseAnalyzer):
         video_info = self.get_video_info(url)
 
         transcript = self.get_transcript(
-            video_info["video_id"],
-            video_info["channel_title"],
-            video_info["video_title"],
+            video_id=video_info["video_id"],
+            channel_title=video_info["channel_title"],
+            video_title=video_info["video_title"],
             save_subtitle=True,
         )
         if transcript:
@@ -341,5 +376,13 @@ class YoutubeAnalyzer(BaseAnalyzer):
 
 if __name__ == "__main__":
     analyzer = YoutubeAnalyzer("stockllm/analyzer/youtube/config.json")
-    result = analyzer.process_url("https://www.youtube.com/watch?v=k4IeR8E8fYI")
+    result = analyzer.process_url("https://www.youtube.com/watch?v=wAHfoyp4R44")
     print(result)
+
+# TODO:
+# 1. Add a progress bar
+# 2. Add a downloader
+# 3. Add a transcriber
+# 4. Add a summarizer
+# 5. Add a saver
+# 6. remove origin audio file
