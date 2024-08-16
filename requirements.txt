@@ -1,2 +1,5 @@
 typer
 colorlog
+youtube_transcript_api
+whisper
+yt_dlp
