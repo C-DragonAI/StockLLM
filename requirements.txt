@@ -1,5 +1,9 @@
+requests
+feedparser
+youtube-transcript-api
+openai
+yt-dlp
+pydub
 typer
 colorlog
-youtube_transcript_api
 whisper
-yt_dlp
