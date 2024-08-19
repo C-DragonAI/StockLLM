@@ -6,3 +6,4 @@ yt-dlp
 pydub
 typer
 colorlog
+whisper

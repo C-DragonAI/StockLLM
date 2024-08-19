@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 import re
@@ -17,22 +18,41 @@ MAX_FILE_SIZE = 25 * 1024 * 1024  # 25 MB in bytes
 INITIAL_CHUNK_DURATION = 10 * 60 * 1000  # 10 minutes in milliseconds
 
 
+class InvalidYoutubeVideoURL(Exception):
+    """Custom exception to represent an invalid YouTube video URL"""
+
+    pass
+
+
 class YoutubeAnalyzer(BaseAnalyzer):
-    def __init__(self, configs_file: str) -> None:
+    def __init__(self, configs_file: str, url: str) -> None:
+        """Initialize the YoutubeAnalyzer.
+
+        Args:
+            configs_file (str): Path to the configuration file.
+            url (str): URL of the YouTube video or playlist to analyze.
+
+        Returns:
+            None
+        """
+        self.url = url
         super().__init__(configs_file)
 
     def load_configs(self, configs_file: str) -> Dict[str, Any]:
-        """
-        Load configurations from a JSON file.
+        """Loads configurations from a JSON file.
 
         Args:
-        configs_file (str): Path to the configuration file.
+            configs_file: Path to the configuration file.
 
         Returns:
-        Dict[str, Any]: Configuration dictionary.
+            A dictionary containing the configuration settings.
+
+        Raises:
+            JSONDecodeError: If there's an error parsing the config file.
+            Exception: For any unexpected errors during config loading.
         """
         default_config = {
-            "output_dir": "youtube_output",
+            "output_dir": "data/youtube/subtitles",
             "save_subtitle": True,
             "cookies_file": None,
             "username": None,
@@ -71,13 +91,49 @@ class YoutubeAnalyzer(BaseAnalyzer):
             return default_config
 
     def load_data(self):
-        pass
+        """Load data from a YouTube video or playlist.
+
+        This method processes the URL stored in the object's 'url' attribute.
+        It can handle both single video URLs and playlist URLs.
+
+        Returns:
+            Any: The result of processing the URL. This could be:
+                A dictionary containing information about a single video, or
+                a list of dictionaries, each containing information about a video in a playlist.
+
+        Raises:
+            ValueError: If the object does not have a 'url' attribute.
+
+        Note:
+            This method internally calls the 'process_url' method to handle the actual URL processing.
+        """
+        if hasattr(self, "url"):
+            return self.process_url(self.url)
+        else:
+            raise ValueError("URL not provided")
 
     def analysis(self):
-        pass
+        if not hasattr(self, "data"):
+            self.data = self.load_data()
+        # TODO: 使用 whisper 處理 transcript
+        # 1. 載入音訊檔案
+        # 2. 使用 whisper 模型進行轉錄
+        # 3. 處理轉錄結果
+        # 4. 儲存轉錄文本
+        return self.data
 
     def extract_video_id(self, url: str) -> Optional[str]:
-        """Extract video ID from a YouTube URL."""
+        """Extract video ID from a YouTube URL.
+
+        Args:
+            url: A string containing the YouTube URL.
+
+        Returns:
+            The extracted video ID as a string if found, None otherwise.
+
+        Raises:
+            InvalidYoutubeVideoURL: If unable to extract a valid YouTube video ID.
+        """
         patterns = [
             r"(?:v=|\/)([0-9A-Za-z_-]{11}).*",
             r"(?:embed\/|v\/|youtu.be\/)([0-9A-Za-z_-]{11})",
@@ -87,14 +143,41 @@ class YoutubeAnalyzer(BaseAnalyzer):
             match = re.search(pattern, url)
             if match:
                 return match.group(1)
-        return None
+        raise InvalidYoutubeVideoURL(
+            f"Unable to extract a valid YouTube video ID from the provided URL: {url}"
+        )
 
     def extract_playlist_id(self, url: str) -> Optional[str]:
-        """Extract playlist ID from a YouTube playlist URL."""
+        """Extract playlist ID from a YouTube playlist URL.
+
+        Args:
+            url: A string containing the YouTube playlist URL.
+
+        Returns:
+            The extracted playlist ID as a string if found, None otherwise.
+
+        Example:
+            >>> extract_playlist_id("https://www.youtube.com/playlist?list=PLxxxxxxxx")
+            "PLxxxxxxxx"
+        """
         playlist_id_match = re.search(r"(?:list=)([0-9A-Za-z_-]+)", url)
         return playlist_id_match.group(1) if playlist_id_match else None
 
     def get_ydl_opts(self, include_download_opts: bool = False) -> dict:
+        """
+        Get YouTube-DL options.
+
+        This method generates a dictionary of options for YouTube-DL based on the
+        current configuration and whether download options should be included.
+
+        Args:
+            include_download_opts (bool): Whether to include download-specific options.
+                Defaults to False.
+
+        Returns:
+            dict: A dictionary of YouTube-DL options.
+
+        """
         ydl_opts = {
             "quiet": True,
             "no_warnings": True,
@@ -122,22 +205,75 @@ class YoutubeAnalyzer(BaseAnalyzer):
         return ydl_opts
 
     def get_video_info(self, url: str) -> Dict[str, str]:
-        """Get video title and channel title from a YouTube URL."""
+        """Retrieves video information from a YouTube URL.
+
+        This method extracts various metadata about a YouTube video using yt-dlp.
+
+        Args:
+            url (str): The URL of the YouTube video.
+
+        Returns:
+            Dict[str, str]: A dictionary containing video metadata. Keys include:
+                - video_id: The unique identifier of the video.
+                - video_title: The title of the video.
+                - channel_title: The name of the channel that uploaded the video.
+                - upload_date: The date the video was uploaded (if available).
+                - view_count: The number of views (if available).
+                - like_count: The number of likes (if available).
+                - duration: The length of the video in seconds (if available).
+                - description: The video description (if available).
+                - tags: A list of tags associated with the video (if available).
+                - categories: A list of categories for the video (if available).
+
+        Raises:
+            yt_dlp.utils.DownloadError: If there's an error retrieving the video information.
+
+        Note:
+            This method will retry fetching the information based on the 'max_retries'
+            configuration. If all retries fail, an empty dictionary is returned.
+        """
         ydl_opts = self.get_ydl_opts()
         for _ in range(self.configs["max_retries"]):
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(url, download=False)
-                    return {
+                    metadata = {
                         "video_id": info["id"],
                         "video_title": info["title"],
                         "channel_title": info["channel"],
+                        "upload_date": info.get("upload_date"),
+                        "view_count": info.get("view_count"),
+                        "like_count": info.get("like_count"),
+                        "duration": info.get("duration"),
+                        "description": info.get("description"),
+                        "tags": info.get("tags"),
+                        "categories": info.get("categories"),
                     }
+                    return {k: v for k, v in metadata.items() if v is not None}
             except yt_dlp.utils.DownloadError as e:
-                logger.error(f"Error getting video info: {e}")
+                logger.error(f"Error retrieving video information: {e}")
         return {}
 
     def get_playlist_info(self, url: str) -> List[Dict[str, str]]:
+        """Retrieves information about videos in a YouTube playlist.
+
+        Args:
+            url (str): The URL of the YouTube playlist.
+
+        Returns:
+            List[Dict[str, str]]: A list of dictionaries, each containing information
+            about a video in the playlist. Each dictionary has the following keys:
+                - video_id: The unique identifier of the video.
+                - video_title: The title of the video.
+                - channel_title: The name of the channel that uploaded the video.
+
+        Raises:
+            yt_dlp.utils.DownloadError: If there's an error retrieving the playlist information.
+
+        Note:
+            This method ignores errors for individual videos in the playlist.
+            If the playlist information cannot be retrieved, an empty list is returned.
+        """
         ydl_opts = self.get_ydl_opts()
         ydl_opts["ignoreerrors"] = True
         try:
@@ -158,23 +294,38 @@ class YoutubeAnalyzer(BaseAnalyzer):
 
     def get_transcript(
         self,
-        video_id: str,
-        channel_title: str,
-        video_title: str,
         save_subtitle: bool = False,
     ) -> Optional[List[Dict[str, str]]]:
-        """
-        Get transcript for a given YouTube video ID.
+        """Gets the transcript for a given YouTube video ID.
+
+        This method attempts to retrieve the transcript for the video associated with
+        the current YoutubeAnalyzer instance. It first tries to get Chinese subtitles,
+        and if unavailable, it attempts to get any available subtitle.
 
         Args:
-        video_id (str): YouTube video ID
-        save_subtitle (bool): Whether to save the subtitle to a file
+            save_subtitle: Whether to save the subtitle to a file. Defaults to False.
 
         Returns:
-        Optional[List[Dict[str, str]]]: List of transcript entries or None if not available
+            A dictionary containing channel ID, video title, and transcript entries,
+            or None if the transcript is unavailable.
+
+        Raises:
+            Exception: If there's an error retrieving the transcript.
+
+        Example:
+            >>> analyzer = YoutubeAnalyzer(configs_file, url)
+            >>> transcript = analyzer.get_transcript(save_subtitle=True)
+            >>> if transcript:
+            ...     print(f"Retrieved {len(transcript['transcript'])} subtitle entries")
+            ... else:
+            ...     print("Unable to retrieve transcript")
         """
+        video_id = self.video_info["video_id"]
+        channel_title = self.video_info["channel_title"]
+        video_title = self.video_info["video_title"]
+
         try:
-            # Try to get the transcript in Chinese languages first
+            # First attempt to get Chinese subtitles
             transcript = YouTubeTranscriptApi.get_transcript(
                 video_id,
                 languages=["zh-TW", "zh-CN", "zh"],
@@ -182,12 +333,12 @@ class YoutubeAnalyzer(BaseAnalyzer):
             )
         except (TranscriptsDisabled, NoTranscriptAvailable):
             try:
-                # If Chinese is not available, try to get any available transcript
+                # If Chinese is unavailable, try to get any available subtitle
                 transcript = YouTubeTranscriptApi.get_transcript(
-                    channel_title, cookies=self.configs["cookies_file"]
+                    video_id, cookies=self.configs["cookies_file"]
                 )
             except Exception as e:
-                logger.error(f"Error getting transcript for video {channel_title}: {e}")
+                logger.error(f"Error getting transcript for video {video_title}: {e}")
                 return None
 
         result = {
@@ -197,16 +348,40 @@ class YoutubeAnalyzer(BaseAnalyzer):
         }
 
         if save_subtitle:
-            subtitle_file = (
-                f"{self.configs['output_dir']}/{channel_title}_subtitle.json"
+            channel_dir = os.path.join(self.configs["output_dir"], channel_title)
+            os.makedirs(channel_dir, exist_ok=True)
+            upload_date = self.video_info.get("upload_date", "")
+            if upload_date:
+                formatted_date = upload_date[
+                    :8
+                ]  # Take first 8 characters, format YYYYMMDD
+            else:
+                formatted_date = datetime.datetime.now().strftime("%Y%m%d")
+            subtitle_file = os.path.join(
+                channel_dir, f"{formatted_date}_{video_id}.json"
             )
-            with open(subtitle_file, "a+", encoding="utf-8") as f:
+            with open(subtitle_file, "w", encoding="utf-8") as f:
                 json.dump(result, f, ensure_ascii=False, indent=2)
             logger.info(f"Subtitle saved to {subtitle_file}")
 
         return result
 
     def download_audio(self, video_id: str) -> Optional[str]:
+        """Downloads audio from a YouTube video.
+
+        This method attempts to download the audio from a YouTube video using yt-dlp.
+        If that fails, it falls back to using the Cobalt API.
+
+        Args:
+            video_id: A string representing the YouTube video ID.
+
+        Returns:
+            The path to the downloaded audio file as a string if successful,
+            or None if the download fails.
+
+        Raises:
+            ValueError: If there's an error processing the video using the Cobalt API.
+        """
         audio_file = f"{self.configs['output_dir']}/{video_id}.mp3"
         ydl_opts = {
             "format": "bestaudio/best",
@@ -223,6 +398,7 @@ class YoutubeAnalyzer(BaseAnalyzer):
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 ydl.download([f"https://www.youtube.com/watch?v={video_id}"])
+            logger.info("Download successful!")
             return audio_file
         except yt_dlp.utils.DownloadError as e:
             try:
@@ -265,7 +441,25 @@ class YoutubeAnalyzer(BaseAnalyzer):
     def process_and_transcribe_audio(
         self, video_info: Dict[str, str], audio_file: str
     ) -> Dict[str, Any]:
-        """Process audio file, chunk if necessary, and transcribe using OpenAI API"""
+        """Process audio file, chunk if necessary, and transcribe using OpenAI API.
+
+        This method takes an audio file, processes it by chunking if necessary,
+        and transcribes it using the OpenAI API. The transcription is then saved
+        as a JSON file.
+
+        Args:
+            video_info: A dictionary containing information about the video.
+            audio_file: The path to the audio file to be processed.
+
+        Returns:
+            A dictionary containing the transcription result, including video ID,
+            title, channel title, and the transcript itself. If an error occurs,
+            it returns a dictionary with the video ID and an error message.
+
+        Raises:
+            ValueError: If unable to create a small enough chunk of audio.
+            Exception: For any other errors that occur during processing.
+        """
         try:
             audio = AudioSegment.from_mp3(audio_file)
             transcripts = []
@@ -334,27 +528,54 @@ class YoutubeAnalyzer(BaseAnalyzer):
                 os.remove(audio_file)
 
     def process_single_video(self, url: str) -> Dict[str, Any]:
-        """Process a single YouTube video from URL."""
-        video_info = self.get_video_info(url)
+        """Process a single YouTube video from URL.
 
+        This function retrieves video information, attempts to get the transcript,
+        and if no transcript is available, downloads the audio for transcription.
+
+        Args:
+            url: The URL of the YouTube video.
+
+        Returns:
+            A dictionary containing video information and transcript (or transcription).
+            If processing fails, returns a dictionary with error information.
+
+        Raises:
+            May raise exceptions related to network requests, file operations,
+            or API calls.
+        """
+        logger.info("Start getting video info...")
+        self.video_info = self.get_video_info(url)
+
+        logger.info("Start getting transcript...")
         transcript = self.get_transcript(
-            video_id=video_info["video_id"],
-            channel_title=video_info["channel_title"],
-            video_title=video_info["video_title"],
             save_subtitle=True,
         )
         if transcript:
-            transcript.update(video_info)
+            transcript.update(self.video_info)
             return transcript
 
-        audio_file = self.download_audio(video_info["video_id"])
+        logger.info("Transcript not found! Start downloading the audio files...")
+        audio_file = self.download_audio(self.video_info["video_id"])
         if not audio_file:
-            return {"error": "Failed to download audio", **video_info}
-
-        return self.process_and_transcribe_audio(video_info, audio_file)
+            logger.warning(f"Failed to download audio {self.video_info}")
+            return {"error": "Failed to download audio", **self.video_info}
+        return self.process_and_transcribe_audio(self.video_info, audio_file)
 
     def process_playlist(self, url: str) -> List[Dict[str, Any]]:
-        """Process all videos in a YouTube playlist."""
+        """Process all videos in a YouTube playlist.
+
+        Args:
+            url: The URL of the YouTube playlist.
+
+        Returns:
+            A list of dictionaries, where each dictionary contains the processed
+            information and results for a single video in the playlist.
+
+        Raises:
+            May raise exceptions related to network requests, file operations,
+            or API calls.
+        """
         playlist_info = self.get_playlist_info(url)
         results = []
 
@@ -366,7 +587,18 @@ class YoutubeAnalyzer(BaseAnalyzer):
         return results
 
     def process_url(self, url: str) -> Any:
-        """Process a YouTube URL, whether it's a single video or a playlist."""
+        """Processes a YouTube URL, whether it's a single video or a playlist.
+
+        Args:
+            url: The YouTube URL to process.
+
+        Returns:
+            Any: If it's a playlist, returns the processed playlist information.
+                 If it's a single video, returns the processed video information.
+
+        Raises:
+            InvalidYoutubeVideoURL: If the provided URL is invalid.
+        """
         playlist_id = self.extract_playlist_id(url)
         if playlist_id:
             return self.process_playlist(url)
@@ -375,14 +607,13 @@ class YoutubeAnalyzer(BaseAnalyzer):
 
 
 if __name__ == "__main__":
-    analyzer = YoutubeAnalyzer("stockllm/analyzer/youtube/config.json")
-    result = analyzer.process_url("https://www.youtube.com/watch?v=wAHfoyp4R44")
-    print(result)
+    analyzer = YoutubeAnalyzer(
+        "stockllm/analyzer/youtube/config.json",
+        url="https://www.youtube.com/watch?v=XuzK4YF69to",
+    )
 
 # TODO:
-# 1. Add a progress bar
-# 2. Add a downloader
-# 3. Add a transcriber
-# 4. Add a summarizer
-# 5. Add a saver
-# 6. remove origin audio file
+# 1. 無字幕透過 whisper 轉換部分尚未測試
+# 2. 結果檔案 schema 統一部分尚未測試
+# 3. 補上合適的 UML 呈現目前架構、擴充方式等
+# 4. Analyzer 開發
