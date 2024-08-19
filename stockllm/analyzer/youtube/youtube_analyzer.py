@@ -24,12 +24,6 @@ class InvalidYoutubeVideoURL(Exception):
     pass
 
 
-class TranscriptNotAvailableError(Exception):
-    """Custom exception to represent that the transcript for a YouTube video is not available"""
-
-    pass
-
-
 class YoutubeAnalyzer(BaseAnalyzer):
     def __init__(self, configs_file: str, url: str) -> None:
         self.url = url
