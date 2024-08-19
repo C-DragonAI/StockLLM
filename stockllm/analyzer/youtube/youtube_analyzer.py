@@ -127,7 +127,9 @@ class YoutubeAnalyzer(BaseAnalyzer):
             match = re.search(pattern, url)
             if match:
                 return match.group(1)
-        return None
+        raise InvalidYoutubeVideoURL(
+            f"Unable to extract a valid YouTube video ID from the provided URL: {url}"
+        )
 
     def extract_playlist_id(self, url: str) -> Optional[str]:
         """Extract playlist ID from a YouTube playlist URL."""
